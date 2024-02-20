@@ -3,6 +3,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.USB_DEVICE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+
 
     <application
         android:allowBackup="true"
@@ -25,7 +27,7 @@
             </intent-filter>
         </activity>
 
-        <!-- DashboardActivity -->
+        <!-- com.example.ali.DashboardActivity -->
         <activity
             android:name=".DashboardActivity"
             android:exported="true">

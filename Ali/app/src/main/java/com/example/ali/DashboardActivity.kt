@@ -1,57 +1,67 @@
 package com.example.ali
 
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.widget.Button
 import android.widget.Toast
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.net.Socket
+import androidx.appcompat.app.AppCompatActivity
+import okhttp3.*
 
 class DashboardActivity : AppCompatActivity() {
-    private var esp32Socket: Socket? = null
+
+    private lateinit var webSocket: WebSocket
+    private val handler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_dashboard)
 
-        // Iniciar a comunicação com o ESP32
-        iniciarComunicacaoComESP32()
+        connectWebSocket()
+
+        // Configurar OnClickListener para os botões
+        val bay1Button: Button = findViewById(R.id.bay1)
+        val bay2Button: Button = findViewById(R.id.bay2)
+        // Adicione os outros botões conforme necessário
+
+        bay1Button.setOnClickListener {
+            sendMessage("ativar 1")
+        }
+
+        bay2Button.setOnClickListener {
+            sendMessage("ativar 2")
+        }
+        // mais botoes
     }
 
-    private fun iniciarComunicacaoComESP32() {
-        Thread {
-            try {
-                // Conectar ao ESP32 (substitua "192.168.4.1" e 80 pela configuração do seu ESP32)
-                esp32Socket = Socket("192.168.4.1", 80)
+    private fun connectWebSocket() {
+        val request = Request.Builder()
+            .url("ws://192.168.4.1:81")
+            .build()
 
-                // Loop para ler mensagens constantes do ESP32
-                while (true) {
-                    // Ler os dados enviados pelo ESP32
-                    val reader = BufferedReader(InputStreamReader(esp32Socket!!.getInputStream()))
-                    val mensagemRecebida = reader.readLine()
+        val client = OkHttpClient()
 
-                    // Exibir a mensagem recebida na tela
-                    runOnUiThread {
-                        exibirMensagem(mensagemRecebida)
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                // Lidar com erros de conexão ou leitura
+        webSocket = client.newWebSocket(request, object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response) {
+                super.onOpen(webSocket, response)
             }
-        }.start()
+        })
     }
 
-    // Função para exibir uma mensagem usando um Toast
-    private fun exibirMensagem(mensagem: String?) {
-        mensagem?.let {
-            Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
+    private fun sendMessage(message: String) {
+        // Enviar mensagem
+        webSocket.send(message)
+        showMessageSentToast(message)
+    }
+
+    private fun showMessageSentToast(message: String) {
+        handler.post {
+            Toast.makeText(this@DashboardActivity, "Mensagem enviada: $message", Toast.LENGTH_SHORT).show()
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        // Fechar o socket quando a atividade for destruída para liberar recursos
-        esp32Socket?.close()
+        webSocket.close(1000, "Activity fechada")
     }
 }
