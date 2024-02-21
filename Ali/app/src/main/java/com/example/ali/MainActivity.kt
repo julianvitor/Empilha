@@ -31,17 +31,23 @@ class MainActivity : AppCompatActivity() {
 
             // Verificar se o usuário e a senha estão vazios
             if (usuario.isNotEmpty() && senha.isNotEmpty()) {
-                // Verificar as credenciais no banco de dados
-                val dbHelper = DatabaseHelper(this)
-                val isValidCredentials = dbHelper.verificarCredenciais(usuario, senha)
-
-                if (isValidCredentials) {
-                    // Se as credenciais forem válidas, iniciar a atividade Dashboard
-                    val intent = Intent(this, DashboardActivity::class.java)
+                // Verificar se as credenciais são de administrador
+                if(usuario == "admin" && senha == "admin"){
+                    val intent = Intent(this, AdminActivity::class.java)
                     startActivity(intent)
                 } else {
-                    // Se as credenciais forem inválidas, exibir uma mensagem de erro
-                    Toast.makeText(this, "Usuário ou senha inválidos", Toast.LENGTH_SHORT).show()
+                    // Verificar as credenciais no banco de dados
+                    val dbHelper = DatabaseHelper(this)
+                    val isValidCredentials = dbHelper.verificarCredenciais(usuario, senha)
+
+                    if (isValidCredentials) {
+                        // Se as credenciais forem válidas, iniciar a atividade Dashboard
+                        val intent = Intent(this, DashboardActivity::class.java)
+                        startActivity(intent)
+                    } else {
+                        // Se as credenciais forem inválidas, exibir uma mensagem de erro
+                        Toast.makeText(this, "Usuário ou senha inválidos", Toast.LENGTH_SHORT).show()
+                    }
                 }
             } else {
                 // Se o usuário ou a senha estiverem vazios, exibir uma mensagem de erro
