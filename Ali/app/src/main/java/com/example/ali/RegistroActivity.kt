@@ -38,11 +38,11 @@ class RegistroActivity : AppCompatActivity() {
 
     private fun registrar() {
         val nome = editTextNome.text.toString().trim()
-        val usuario = editTextUsuario.text.toString().trim()
+        val apelido = editTextUsuario.text.toString().trim()
         val senha = editTextSenha.text.toString().trim()
 
         // Validar os campos
-        if (nome.isEmpty() || usuario.isEmpty() || senha.isEmpty()) {
+        if (nome.isEmpty() || apelido.isEmpty() || senha.isEmpty()) {
             Toast.makeText(this, "Por favor, preencha todos os campos", Toast.LENGTH_SHORT).show()
             return
         }
@@ -53,13 +53,13 @@ class RegistroActivity : AppCompatActivity() {
         // Criar um ContentValues para inserir os dados no banco de dados
         val values = ContentValues().apply {
             put("nome", nome)
-            put("usuario", usuario)
+            put("apelido", apelido)
             put("senha", senha)
         }
 
         try {
             // Inserir os dados na tabela
-            val newRowId = db.insertOrThrow("registros", null, values)
+            val newRowId = db.insertOrThrow("usuarios", null, values)
 
             // Verificar se a inserção foi bem-sucedida
             if (newRowId != -1L) {

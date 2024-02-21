@@ -1,18 +1,20 @@
 package com.example.ali
 
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var editTextUsername: EditText
     private lateinit var editTextPassword: EditText
     private lateinit var buttonLogin: Button
-    private lateinit var buttonRegister: Button
+    private lateinit var buttonRegister
+            : Button
+    private lateinit var dbHelper: DatabaseHelper
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,26 +25,27 @@ class MainActivity : AppCompatActivity() {
         editTextPassword = findViewById(R.id.editTextPassword)
         buttonLogin = findViewById(R.id.buttonLogin)
         buttonRegister = findViewById(R.id.buttonRegister)
+        dbHelper = DatabaseHelper(this)
 
         // Configurar OnClickListener para o botão Login
         buttonLogin.setOnClickListener {
-            val usuario = editTextUsername.text.toString()
+            val apelido = editTextUsername.text.toString()
             val senha = editTextPassword.text.toString()
 
             // Verificar se o usuário e a senha estão vazios
-            if (usuario.isNotEmpty() && senha.isNotEmpty()) {
+            if (apelido.isNotEmpty() && senha.isNotEmpty()) {
                 // Verificar se as credenciais são de administrador
-                if(usuario == "admin" && senha == "admin"){
+                if (apelido == "admin" && senha == "admin") {
                     val intent = Intent(this, AdminActivity::class.java)
                     startActivity(intent)
                 } else {
                     // Verificar as credenciais no banco de dados
-                    val dbHelper = DatabaseHelper(this)
-                    val isValidCredentials = dbHelper.verificarCredenciais(usuario, senha)
+                    val isValidCredentials = dbHelper.verificarCredenciais(apelido, senha)
 
                     if (isValidCredentials) {
-                        // Se as credenciais forem válidas, iniciar a atividade Dashboard
+                        // Passar o nome de usuário para a próxima atividade
                         val intent = Intent(this, DashboardActivity::class.java)
+                        intent.putExtra("apelidoUsuario", apelido) // Passando o nome de usuário como extra
                         startActivity(intent)
                     } else {
                         // Se as credenciais forem inválidas, exibir uma mensagem de erro
@@ -62,3 +65,4 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
+

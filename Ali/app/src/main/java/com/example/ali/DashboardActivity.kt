@@ -1,5 +1,6 @@
 package com.example.ali
 
+import android.content.ContentValues
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -7,17 +8,21 @@ import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import okhttp3.*
+import java.util.*
+
 
 class DashboardActivity : AppCompatActivity() {
 
     private lateinit var webSocket: WebSocket
+    private lateinit var dbHelper: DatabaseHelper // Declare a variável dbHelper aqui
     private val handler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_dashboard)
-
-        connectWebSocket()
+        conectarWebsocket()
+        //instanciar o helper DB
+        dbHelper = DatabaseHelper(this) // Inicialize dbHelper aqui
 
         // Configurar OnClickListener para os botões
         val bay1Button: Button = findViewById(R.id.bay1)
@@ -25,24 +30,26 @@ class DashboardActivity : AppCompatActivity() {
         val bay3Button: Button = findViewById(R.id.bay3)
         val bay4Button: Button = findViewById(R.id.bay4)
 
-
-
         bay1Button.setOnClickListener {
-            sendMessage("ativar 1")
+            registrarUso("1") // Registrar o uso da doca 1
+            enviarMensagem("ativar 1")
         }
         bay2Button.setOnClickListener {
-            sendMessage("ativar 2")
+            registrarUso("2") // Registrar o uso da doca 2
+            enviarMensagem("ativar 2")
         }
         bay3Button.setOnClickListener {
-            sendMessage("ativar 3")
+            registrarUso("3") // Registrar o uso da doca 3
+            enviarMensagem("ativar 3")
         }
         bay4Button.setOnClickListener {
-            sendMessage("ativar 4")
+            registrarUso("4") // Registrar o uso da doca 4
+            enviarMensagem("ativar 4")
         }
         // mais botoes
     }
 
-    private fun connectWebSocket() {
+    private fun conectarWebsocket() {
         val request = Request.Builder()
             .url("ws://192.168.4.1:81")
             .build()
@@ -53,18 +60,74 @@ class DashboardActivity : AppCompatActivity() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 super.onOpen(webSocket, response)
             }
+
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                super.onMessage(webSocket, text)
+                receberMensagem(text)
+            }
+
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                super.onFailure(webSocket, t, response)
+                exibirErro(t.message ?: "Erro desconhecido")
+            }
         })
     }
 
-    private fun sendMessage(message: String) {
-        // Enviar mensagem
-        webSocket.send(message)
-        showMessageSentToast(message)
+    private fun registrarUso(doca: String) {
+        //obter o nome de usuário da atividade anterior
+        val apelido = intent.getStringExtra("apelidoUsuario")
+
+        // Obter a data e hora atual
+        val calendar = Calendar.getInstance()
+        val dataHoraAtual = "${calendar.get(Calendar.YEAR)}-${calendar.get(Calendar.MONTH) + 1}-${calendar.get(Calendar.DAY_OF_MONTH)} " +
+                "${calendar.get(Calendar.HOUR_OF_DAY)}:${calendar.get(Calendar.MINUTE)}:${calendar.get(Calendar.SECOND)}"
+
+        // Obter o banco de dados em modo de escrita
+        val db = dbHelper.writableDatabase
+
+        // Criar um ContentValues para inserir os dados no banco de dados
+        val values = ContentValues().apply {
+            put(DatabaseHelper.COLUMN_USUARIO_APELIDO, apelido)
+            put(DatabaseHelper.COLUMN_RETIRADA, dataHoraAtual) // Registrando a hora de retirada
+            put(DatabaseHelper.COLUMN_DOCA, doca) // Adicionando a doca correspondente
+        }
+
+        try {
+            // Inserir os dados na tabela
+            val newRowId = db.insertOrThrow(DatabaseHelper.TABLE_USOS, null, values)
+            // Verificar se a inserção foi bem-sucedida
+            if (newRowId != -1L) {
+                Toast.makeText(this, "Registro bem-sucedido!", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Erro ao registrar. Tente novamente.", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            // Exibir mensagem de erro personalizada com base na exceção
+            Toast.makeText(this, "Erro ao registrar: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 
-    private fun showMessageSentToast(message: String) {
+    private fun enviarMensagem(mensagem: String) {
+        // Enviar mensagem
+        webSocket.send(mensagem)
+        exibirMensagemEnviada(mensagem)
+    }
+
+    private fun exibirMensagemEnviada(mensagem: String) {
         handler.post {
-            Toast.makeText(this@DashboardActivity, "Mensagem enviada: $message", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this@DashboardActivity, "Mensagem enviada: $mensagem", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun receberMensagem(mensagem: String) {
+        handler.post {
+            Toast.makeText(this@DashboardActivity, "Mensagem recebida: $mensagem", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun exibirErro(erro: String) {
+        handler.post {
+            Toast.makeText(this@DashboardActivity, "Erro: $erro", Toast.LENGTH_SHORT).show()
         }
     }
 
