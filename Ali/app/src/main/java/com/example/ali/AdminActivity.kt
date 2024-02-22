@@ -1,7 +1,7 @@
 package com.example.ali
+
 import android.annotation.SuppressLint
 import android.database.Cursor
-import android.database.sqlite.SQLiteDatabase
 import android.os.Bundle
 import android.widget.TableLayout
 import android.widget.TableRow
@@ -10,94 +10,66 @@ import androidx.appcompat.app.AppCompatActivity
 
 class AdminActivity : AppCompatActivity() {
 
-    private lateinit var handlerDB: DatabaseHelper // DatabaseHelper deve ser importado do seu pacote
+    private lateinit var databaseHelper: DatabaseHelper
 
     @SuppressLint("Range")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_admin) // Defina o layout XML para esta atividade
+        setContentView(R.layout.activity_admin)
 
-        // Inicialize o DatabaseHelper
-        handlerDB = DatabaseHelper(this)
+        // Inicializa o DatabaseHelper
+        databaseHelper = DatabaseHelper(this)
 
-        // Encontre a TableLayout no layout XML
+        // Obtém a referência para o TableLayout do layout
         val tableLayout: TableLayout = findViewById(R.id.table_layout)
 
-        // Recupere os dados do banco de dados
-        val cursor: Cursor = getDataFromDatabase()
+        // Obtém um Cursor com os nomes dos usuários e suas informações de retirada
+        val cursor: Cursor? = getUsuariosERetiradas()
 
-        // Adicione os dados à tabela dinamicamente
-        if (cursor.moveToFirst()) {
+        // Verifica se o cursor não é nulo e se possui dados
+        if (cursor != null && cursor.moveToFirst()) {
             do {
+                // Obtém o nome do usuário e sua informação de retirada do cursor
                 val nome = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_USUARIO_NOME))
-                val datasRetirada = getDatasRetirada(nome)
+                val retirada = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_RETIRADA))
 
-                // Crie uma nova linha para cada entrada de dados
+                // Cria uma nova linha na tabela
                 val row = TableRow(this)
 
-                // Adicione o nome do usuário como um TextView à linha
+                // Adiciona textviews com o nome do usuário e sua informação de retirada à linha
                 addTextViewToRow(row, nome)
+                addTextViewToRow(row, retirada)
 
-                // Adicione as datas de retirada como um TextView à linha
-                addTextViewToRow(row, datasRetirada)
-
-                // Adicione a linha à TableLayout
+                // Adiciona a linha à tabela
                 tableLayout.addView(row)
-
             } while (cursor.moveToNext())
         }
-        cursor.close()
+
+        // Fecha o cursor após o uso para liberar recursos
+        cursor?.close()
     }
 
-    // Função para recuperar os dados do banco de dados
-    private fun getDataFromDatabase(): Cursor {
-        val db: SQLiteDatabase = handlerDB.readableDatabase
+    // Função para obter um Cursor com os nomes dos usuários e suas informações de retirada
+    private fun getUsuariosERetiradas(): Cursor? {
+        val db = databaseHelper.readableDatabase
 
-        // Consulta SQL para selecionar nome e datas de retirada
-        val query = """
-            SELECT ${DatabaseHelper.COLUMN_USUARIO_NOME}, GROUP_CONCAT(${DatabaseHelper.COLUMN_RETIRADA}) AS datas_retirada
-            FROM ${DatabaseHelper.TABLE_USUARIOS} LEFT JOIN ${DatabaseHelper.TABLE_USOS}
-            ON ${DatabaseHelper.TABLE_USUARIOS}.${DatabaseHelper.COLUMN_USUARIO_APELIDO} = ${DatabaseHelper.TABLE_USOS}.${DatabaseHelper.COLUMN_USUARIO_APELIDO}
-            GROUP BY ${DatabaseHelper.COLUMN_USUARIO_NOME}
-        """.trimIndent()
+        // Consulta SQL para obter os nomes dos usuários e suas informações de retirada
+        val query = "SELECT ${DatabaseHelper.TABLE_USUARIOS}.${DatabaseHelper.COLUMN_USUARIO_NOME}, " +
+                "${DatabaseHelper.TABLE_USOS}.${DatabaseHelper.COLUMN_RETIRADA} " +
+                "FROM ${DatabaseHelper.TABLE_USUARIOS} " +
+                "LEFT JOIN ${DatabaseHelper.TABLE_USOS} " +
+                "ON ${DatabaseHelper.TABLE_USUARIOS}.${DatabaseHelper.COLUMN_USUARIO_APELIDO} = " +
+                "${DatabaseHelper.TABLE_USOS}.${DatabaseHelper.COLUMN_USUARIO_APELIDO}"
 
+        // Executa a consulta e retorna o Cursor resultante
         return db.rawQuery(query, null)
     }
 
-    // Função para recuperar as datas de retirada associadas a um nome de usuário
-    private fun getDatasRetirada(nomeUsuario: String): String {
-        val db: SQLiteDatabase = handlerDB.readableDatabase
-
-        val query = """
-            SELECT ${DatabaseHelper.COLUMN_RETIRADA}
-            FROM ${DatabaseHelper.TABLE_USOS} 
-            WHERE ${DatabaseHelper.COLUMN_USUARIO_APELIDO} = (
-                SELECT ${DatabaseHelper.COLUMN_USUARIO_APELIDO} 
-                FROM ${DatabaseHelper.TABLE_USUARIOS} 
-                WHERE ${DatabaseHelper.COLUMN_USUARIO_NOME} = '$nomeUsuario'
-            )
-        """.trimIndent()
-
-        val cursor = db.rawQuery(query, null)
-        val datas = StringBuilder()
-
-        if (cursor.moveToFirst()) {
-            do {
-                val dataRetirada = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_RETIRADA))
-                datas.append("$dataRetirada\n")
-            } while (cursor.moveToNext())
-        }
-
-        cursor.close()
-        return datas.toString()
-    }
-
-    // Função para adicionar um TextView a uma TableRow
+    // Função auxiliar para adicionar textview a uma linha da tabela
     private fun addTextViewToRow(row: TableRow, text: String) {
         val textView = TextView(this)
         textView.text = text
         textView.setPadding(8, 8, 8, 8)
-        textView.layoutParams = TableRow.LayoutParams(0, TableRow.LayoutParams.WRAP_CONTENT, 1f)
         row.addView(textView)
     }
 }

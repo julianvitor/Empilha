@@ -1,6 +1,5 @@
 package com.example.ali
 
-import android.content.ContentValues
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -8,46 +7,55 @@ import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import okhttp3.*
-import java.util.*
-
 
 class DashboardActivity : AppCompatActivity() {
 
     private lateinit var webSocket: WebSocket
     private lateinit var dbHelper: DatabaseHelper // Declare a variável dbHelper aqui
     private val handler = Handler(Looper.getMainLooper())
+    private var mensagemRecebida: String? = null // Variável para armazenar a mensagem recebida
+    private var uid: String? = null // variavel para armazenar o uid extraido
+    private var doca: String? = null // variavel de controle da doca
+    private var apelido: String? = null
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        //exibe a tela
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_dashboard)
+        apelido = intent.getStringExtra("apelidoUsuario")
+        //conectar no websocket
         conectarWebsocket()
+
         //instanciar o helper DB
         dbHelper = DatabaseHelper(this) // Inicialize dbHelper aqui
 
-        // Configurar OnClickListener para os botões
+        // Configurar os botões
         val bay1Button: Button = findViewById(R.id.bay1)
         val bay2Button: Button = findViewById(R.id.bay2)
         val bay3Button: Button = findViewById(R.id.bay3)
         val bay4Button: Button = findViewById(R.id.bay4)
 
+        //ação dos botoes
         bay1Button.setOnClickListener {
-            registrarUso("1") // Registrar o uso da doca 1
-            enviarMensagem("ativar 1")
+            enviarMensagem("ativar 1")//após enviar a mensagem o fluxo continua no onmensage do websocket quando for retirado da base
+            doca = "1"
         }
         bay2Button.setOnClickListener {
-            registrarUso("2") // Registrar o uso da doca 2
             enviarMensagem("ativar 2")
+            doca = "2"
         }
         bay3Button.setOnClickListener {
-            registrarUso("3") // Registrar o uso da doca 3
             enviarMensagem("ativar 3")
+            doca = "3"
         }
         bay4Button.setOnClickListener {
-            registrarUso("4") // Registrar o uso da doca 4
             enviarMensagem("ativar 4")
+            doca = "4"
         }
         // mais botoes
     }
+
 
     private fun conectarWebsocket() {
         val request = Request.Builder()
@@ -59,44 +67,49 @@ class DashboardActivity : AppCompatActivity() {
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 super.onOpen(webSocket, response)
+                exibirMensagemRecebida("websocket aberto")
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
                 super.onMessage(webSocket, text)
-                receberMensagem(text)
+                mensagemRecebida = text // Armazena a mensagem recebida na variável de classe
+                exibirMensagemRecebida(text)
+
+                if (mensagemRecebida!!.startsWith("removido:")) {
+                    extrairUid(mensagemRecebida!!)// agora o uid extraido ja está na memoria e é possivel passar para a função que grava no banco de dados
+                    dbHelper?.registrarUso(apelido ?: "", uid ?: "", doca ?: "")
+                    exibirToast("Sucesso: registrado")
+                    finish()
+                }
+                else {exibirToast("Erro: Formato de mensagem inválido: $mensagemRecebida")
+                }
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 super.onFailure(webSocket, t, response)
-                exibirErro(t.message ?: "Erro desconhecido")
+                exibirToast(t.message ?: "Erro: websocket fail")
+                reconectarWebsocket()
             }
         })
     }
 
-    private fun registrarUso(doca: String) {
-        val apelido = intent.getStringExtra("apelidoUsuario")
-        val calendar = Calendar.getInstance()
-        val dataHoraAtual = "${calendar.get(Calendar.YEAR)}-${calendar.get(Calendar.MONTH) + 1}-${calendar.get(Calendar.DAY_OF_MONTH)} " +
-                "${calendar.get(Calendar.HOUR_OF_DAY)}:${calendar.get(Calendar.MINUTE)}:${calendar.get(Calendar.SECOND)}"
-
-        val db = dbHelper.writableDatabase
-        val values = ContentValues().apply {
-            put(DatabaseHelper.COLUMN_USUARIO_APELIDO, apelido)
-            put(DatabaseHelper.COLUMN_RETIRADA, dataHoraAtual)
-            put(DatabaseHelper.COLUMN_DOCA, doca)
-        }
-
-        try {
-            val newRowId = db.insertOrThrow(DatabaseHelper.TABLE_USOS, null, values)
-            if (newRowId != -1L) {
-                Toast.makeText(this, "Registro bem-sucedido!", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this, "Erro ao registrar. Tente novamente.", Toast.LENGTH_SHORT).show()
-            }
-        } catch (e: Exception) {
-            Toast.makeText(this, "Erro ao registrar: ${e.message}", Toast.LENGTH_SHORT).show()
+    private fun extrairUid (mensagem: String){
+        if (mensagem.startsWith("removido:")) {
+            uid = mensagem.substringAfter(":")
+        } else {
+            // Se a mensagem não estiver no formato esperado, exibir um erro ou lidar de outra forma
+            exibirToast("Erro: Formato de mensagem inválido: $mensagem")
         }
     }
+
+
+    fun reconectarWebsocket() {
+        // Conectar ao WebSocket após 5 segundos
+        handler.postDelayed({
+            conectarWebsocket()
+        }, 5000) // 5000 milissegundos = 5 segundos
+    }
+
 
     private fun enviarMensagem(mensagem: String) {
         // Enviar mensagem
@@ -110,15 +123,19 @@ class DashboardActivity : AppCompatActivity() {
         }
     }
 
-    private fun receberMensagem(mensagem: String) {
+    private fun exibirMensagemRecebida(mensagem: String) {
         handler.post {
-            Toast.makeText(this@DashboardActivity, "Mensagem recebida: $mensagem", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this@DashboardActivity,
+                "Mensagem recebida: $mensagem",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
-    private fun exibirErro(erro: String) {
+    private fun exibirToast(erro: String) {
         handler.post {
-            Toast.makeText(this@DashboardActivity, "Erro: $erro", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this@DashboardActivity, "$erro", Toast.LENGTH_SHORT).show()
         }
     }
 

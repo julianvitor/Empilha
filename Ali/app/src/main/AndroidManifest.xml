@@ -52,6 +52,8 @@
             android:exported="true">
         </activity>
 
+        <service android:name=".WebSocketService" />
+
     </application>
 
 </manifest>
