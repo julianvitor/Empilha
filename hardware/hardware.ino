@@ -19,9 +19,12 @@ Adafruit_PN532 nfc(PINO_SDA, PINO_SCL);
 String lastUID = ""; // Variável para armazenar o UID anterior lido
 String currentUID = ""; // Variável para armazenar o UID atual
 
+unsigned long previousMillis = 0;
+const long interval = 5000; // Intervalo de tempo em milissegundos entre as leituras do cartão RFID
+
 void acionarRele(int pin) {
   digitalWrite(pin, LOW);
-  delay(1000);
+  delay(20000);
   digitalWrite(pin, HIGH);
 }
 
@@ -59,6 +62,7 @@ void setup() {
 
   WiFi.softAP(ssid, password);
   IPAddress IP = WiFi.softAPIP();
+
   Serial.print("Endereço IP do AP: ");
   Serial.println(IP);
 
@@ -72,45 +76,49 @@ void setup() {
 void loop() {
   webSocket.loop();
 
-  // Verifica se há um cartão RFID
-  uint8_t success;
-  uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer para armazenar o UID lido
-  uint8_t uidLength;                        // Comprimento do UID (4 ou 7 bytes dependendo do tipo de cartão)
-  success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 500);
-  
-  if (success) {
-    // Se um cartão foi encontrado, converte o UID para uma string
-    currentUID = "";
-    for (uint8_t i=0; i < uidLength; i++) {
-      currentUID += String(uid[i], HEX);
-    }
+  unsigned long currentMillis = millis();
 
-    // Verifica se o UID atual é diferente do UID anterior ou se é a primeira leitura
-    if (currentUID != lastUID || lastUID == "") {
-      // Envia o UID para todos os clientes conectados via WebSocket
-      webSocket.broadcastTXT("inserido:"+currentUID);
+  if (currentMillis - previousMillis >= interval) {
+    // Salva o último tempo de leitura
+    previousMillis = currentMillis;
 
-      // Imprime o UID no Serial Monitor
-      Serial.print("inserido:");
-      Serial.println(currentUID);
+    // Verifica se há um cartão RFID
+    uint8_t success;
+    uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer para armazenar o UID lido
+    uint8_t uidLength;                        // Comprimento do UID (4 ou 7 bytes dependendo do tipo de cartão)
+    success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 500);
+    
+    if (success) {
+      // Se um cartão foi encontrado, converte o UID para uma string
+      currentUID = "";
+      for (uint8_t i=0; i < uidLength; i++) {
+        currentUID += String(uid[i], HEX);
+      }
 
-      // Atualiza o último UID lido
-      lastUID = currentUID;
-    }
+      // Verifica se o UID atual é diferente do UID anterior ou se é a primeira leitura
+      if (currentUID != lastUID || lastUID == "") {
+        // Envia o UID para todos os clientes conectados via WebSocket
+        webSocket.broadcastTXT("inserido:"+currentUID);
 
-    // Aguarda um pouco antes de tentar ler outro cartão
-    delay(1000);
-  } else {
-    // Se não foi encontrado um cartão RFID, verifica se o último UID lido foi diferente de vazio
-    if (lastUID != "") {
-      // Envia uma mensagem indicando que o cartão foi removido para todos os clientes conectados via WebSocket
-      webSocket.broadcastTXT("removido:"+lastUID);
+        // Imprime o UID no Serial Monitor
+        Serial.print("inserido:");
+        Serial.println(currentUID);
 
-      // Imprime no Serial Monitor que o cartão foi removido
-      Serial.println("removido:"+lastUID);
+        // Atualiza o último UID lido
+        lastUID = currentUID;
+      }
+    } else {
+      // Se não foi encontrado um cartão RFID, verifica se o último UID lido foi diferente de vazio
+      if (lastUID != "") {
+        // Envia uma mensagem indicando que o cartão foi removido para todos os clientes conectados via WebSocket
+        webSocket.broadcastTXT("removido:"+lastUID);
 
-      // Limpa o último UID lido
-      lastUID = "";
+        // Imprime no Serial Monitor que o cartão foi removido
+        Serial.println("removido:"+lastUID);
+
+        // Limpa o último UID lido
+        lastUID = "";
+      }
     }
   }
 }
