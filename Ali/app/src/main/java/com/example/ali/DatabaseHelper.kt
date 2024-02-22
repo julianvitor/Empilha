@@ -1,165 +1,163 @@
 package com.example.ali
 
-import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
-import android.database.sqlite.SQLiteDatabase
-import android.database.sqlite.SQLiteOpenHelper
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
+import java.io.IOException
+import java.nio.charset.Charset
 import java.util.*
 
-class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "registro.db", null, 2) {
+data class Quadra<T, U, V, W>(val first: T, val second: U, val third: V, val fourth: W)
 
-    private val appContext: Context = context.applicationContext
-
-    companion object {
-        // Definição de constantes para nome de tabelas e colunas
-        const val TABLE_USUARIOS = "usuarios"
-        const val TABLE_USOS = "usos"
-        const val COLUMN_USUARIO_ID = "usuario_id"
-        const val COLUMN_USUARIO_NOME = "nome"
-        const val COLUMN_USUARIO_SENHA = "senha"
-        const val COLUMN_USUARIO_APELIDO = "apelido"
-        const val COLUMN_ID = "_id"
-        const val COLUMN_RETIRADA = "retirada"
-        const val COLUMN_UID = "uid"
-        const val COLUMN_DOCA = "doca"
-        const val COLUMN_DEVOLUCAO = "devolucao"
-
-        @SuppressLint("Range")
-        private fun getNomeUsuarioPorUID(databaseHelper: DatabaseHelper, uid: String): String? {
-            val db = databaseHelper.readableDatabase
-    
-            // Consulta para obter o nome do usuário associado ao UID usando JOIN entre as tabelas "usuarios" e "usos"
-            val query = "SELECT $COLUMN_USUARIO_NOME " +
-                    "FROM $TABLE_USUARIOS AS u " +
-                    "INNER JOIN $TABLE_USOS AS s ON u.$COLUMN_USUARIO_APELIDO = s.$COLUMN_USUARIO_APELIDO " +
-                    "WHERE s.$COLUMN_UID = ?"
-    
-            val cursor = db.rawQuery(query, arrayOf(uid))
-    
-            var nomeUsuario: String? = null
-    
-            if (cursor.moveToFirst()) {
-                nomeUsuario = cursor.getString(cursor.getColumnIndex(COLUMN_USUARIO_NOME))
-            }
-    
-            cursor.close()
-            db.close()
-    
-            return nomeUsuario ?: "Nenhum usuário encontrado" // Retorna uma string padrão se nomeUsuario for null
-        }
-    }
-
-    override fun onCreate(db: SQLiteDatabase) {
-        val SQL_CREATE_USUARIOS_TABLE = "CREATE TABLE $TABLE_USUARIOS (" +
-                "$COLUMN_USUARIO_ID INTEGER PRIMARY KEY," +
-                "$COLUMN_USUARIO_NOME TEXT," +
-                "$COLUMN_USUARIO_SENHA TEXT," +
-                "$COLUMN_USUARIO_APELIDO TEXT)"
-        db.execSQL(SQL_CREATE_USUARIOS_TABLE)
-
-        val SQL_CREATE_USOS_TABLE = "CREATE TABLE $TABLE_USOS (" +
-                "$COLUMN_ID INTEGER PRIMARY KEY," +
-                "$COLUMN_USUARIO_APELIDO TEXT," +
-                "$COLUMN_RETIRADA TEXT," +
-                "$COLUMN_DEVOLUCAO TEXT," +
-                "$COLUMN_DOCA TEXT," +
-                "$COLUMN_UID TEXT)"
-
-        db.execSQL(SQL_CREATE_USOS_TABLE)
-    }
-
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_USUARIOS")
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_USOS")
-        onCreate(db)
-    }
+class DatabaseHelper(context: Context) {
+    internal val usuariosFileName = "usuarios.json"
+    private val usosFileName = "usos.json"
+    private val context: Context = context.applicationContext
 
     fun registrarDevolucao(uid: String) {
-        val db = writableDatabase
+        val usosJson = loadJsonFromFile(usosFileName) ?: JSONObject()
+        val usosArray = usosJson.optJSONArray("usos") ?: JSONArray()
 
-        // Consultar o nome associado ao UID fornecido
-        val nomeUsuario: String? = Companion.getNomeUsuarioPorUID(this, uid)
+        var devolucaoRegistrada = false
 
-        // Se o nome do usuário foi encontrado, registre a devolução
-        if (nomeUsuario != null) {
-            // Obter a data atual
-            val dataHoraAtual = getDataHoraAtual()
-
-            // Atualizar o UID para zero e a coluna devolucao com a data atual
-            val values = ContentValues().apply {
-                put(COLUMN_UID, "0") // Definir UID como zero
-                put(COLUMN_DEVOLUCAO, dataHoraAtual) // Registrar a hora da devolução
+        // Iterar sobre todos os registros para encontrar aqueles com o UID correspondente
+        for (i in 0 until usosArray.length()) {
+            val uso = usosArray.optJSONObject(i)
+            if (uso.optString("uid") == uid) {
+                uso.put("devolucao", getDataHoraAtual())
+                devolucaoRegistrada = true
             }
-
-            // Executar a atualização no banco de dados
-            db.update(
-                TABLE_USOS,
-                values,
-                "$COLUMN_UID = ?",
-                arrayOf(uid)
-            )
         }
 
-        db.close()
+        // Verificar se a devolução foi registrada
+        if (!devolucaoRegistrada) {
+            // Lidar com o caso em que nenhum registro com o UID correspondente foi encontrado
+            // Aqui você pode lançar uma exceção, enviar uma mensagem de erro ou tomar outra ação adequada ao seu aplicativo
+            return
+        }
+
+        // Salvar as alterações no arquivo JSON
+        writeJsonToFile(usosJson.toString(), usosFileName)
     }
 
-
     fun registrarUso(apelido: String, uid: String, doca: String) {
-        val db = writableDatabase
-        val dataHoraAtual = getDataHoraAtual()
+        val usosJson = loadJsonFromFile(usosFileName) ?: JSONObject()
+        val usosArray = usosJson.optJSONArray("usos") ?: JSONArray()
 
         // Verificar se já existe um registro para o usuário
-        val cursor = db.query(
-            TABLE_USOS,
-            null,
-            "$COLUMN_USUARIO_APELIDO = ?",
-            arrayOf(apelido),
-            null,
-            null,
-            null
-        )
-
-        if (cursor.count > 0) {
-            // Já existe um registro para o usuário, então atualize-o
-            val values = ContentValues().apply {
-                put(COLUMN_RETIRADA, dataHoraAtual)
-                put(COLUMN_UID, uid)
-                put(COLUMN_DOCA, doca)
+        var found = false
+        for (i in 0 until usosArray.length()) {
+            val uso = usosArray.optJSONObject(i)
+            if (uso.optString("apelido") == apelido) {
+                uso.put("retirada", getDataHoraAtual())
+                uso.put("uid", uid)
+                uso.put("doca", doca)
+                found = true
+                break
             }
-
-            db.update(
-                TABLE_USOS,
-                values,
-                "$COLUMN_USUARIO_APELIDO = ?",
-                arrayOf(apelido)
-            )
-
-        } else {
-            // Não existe um registro para o usuário, então insira um novo
-            val values = ContentValues().apply {
-                put(COLUMN_USUARIO_APELIDO, apelido)
-                put(COLUMN_RETIRADA, dataHoraAtual)
-                put(COLUMN_UID, uid)
-                put(COLUMN_DOCA, doca)
-            }
-
-            db.insert(TABLE_USOS, null, values)
         }
 
-        cursor.close()
-        db.close()
+        if (!found) {
+            val novoUso = JSONObject()
+            novoUso.put("apelido", apelido)
+            novoUso.put("retirada", getDataHoraAtual())
+            novoUso.put("uid", uid)
+            novoUso.put("doca", doca)
+            usosArray.put(novoUso)
+        }
+
+        usosJson.put("usos", usosArray)
+        writeJsonToFile(usosJson.toString(), usosFileName)
     }
 
     fun verificarCredenciais(apelido: String, senha: String): Boolean {
-        val db = readableDatabase
-        val projection = arrayOf(COLUMN_USUARIO_ID)
-        val selection = "$COLUMN_USUARIO_APELIDO = ? AND $COLUMN_USUARIO_SENHA = ?"
-        val selectionArgs = arrayOf(apelido, senha)
-        val cursor = db.query(TABLE_USUARIOS, projection, selection, selectionArgs, null, null, null)
-        val existeRegistro = cursor.count > 0
-        cursor.close()
-        return existeRegistro
+        val usuariosJson = loadJsonFromFile(usuariosFileName) ?: JSONObject()
+        val usuariosArray = usuariosJson.optJSONArray("usuarios") ?: JSONArray()
+
+        // Verificar se há um usuário com as credenciais fornecidas
+        for (i in 0 until usuariosArray.length()) {
+            val usuario = usuariosArray.optJSONObject(i)
+            if (usuario.optString("apelido") == apelido && usuario.optString("senha") == senha) {
+                return true
+            }
+        }
+        return false
+    }
+
+    fun getUsuariosERetiradas(): List<Pair<String, String>> {
+        val usosJson = loadJsonFromFile(usosFileName) ?: JSONObject()
+        val usosArray = usosJson.optJSONArray("usos") ?: JSONArray()
+
+        val usuariosERetiradas = mutableListOf<Pair<String, String>>()
+
+        for (i in 0 until usosArray.length()) {
+            val uso = usosArray.optJSONObject(i)
+            val apelido = uso.optString("apelido")
+            val retirada = uso.optString("retirada")
+            usuariosERetiradas.add(Pair(apelido, retirada))
+        }
+
+        return usuariosERetiradas
+    }
+
+    fun getUsuariosERetiradasDevolucao(): List<Quadra<String, String, String, String>> {
+        val usosJson = loadJsonFromFile(usosFileName) ?: JSONObject()
+        val usosArray = usosJson.optJSONArray("usos") ?: JSONArray()
+
+        val usuariosERetiradasDevolucao = mutableListOf<Quadra<String, String, String, String>>()
+
+        for (i in 0 until usosArray.length()) {
+            val uso = usosArray.optJSONObject(i)
+            val apelido = uso.optString("apelido")
+            val retirada = uso.optString("retirada")
+            val devolucao = uso.optString("devolucao")
+            val uid = uso.optString("uid")
+            usuariosERetiradasDevolucao.add(Quadra(apelido, retirada, devolucao, uid))
+        }
+
+        return usuariosERetiradasDevolucao
+    }
+
+    private fun loadJsonFromAsset(fileName: String): String? {
+        return try {
+            val inputStream = context.assets.open(fileName)
+            val size = inputStream.available()
+            val buffer = ByteArray(size)
+            inputStream.read(buffer)
+            inputStream.close()
+            String(buffer, Charset.defaultCharset())
+        } catch (e: IOException) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    private fun writeJsonToFile(jsonData: String, fileName: String) {
+        try {
+            val fileOutputStream = context.openFileOutput(fileName, Context.MODE_PRIVATE)
+            fileOutputStream.write(jsonData.toByteArray())
+            fileOutputStream.close()
+        } catch (e: IOException) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun loadJsonFromFile(fileName: String): JSONObject? {
+        val file = File(context.filesDir, fileName)
+        return if (file.exists()) {
+            try {
+                val bufferedReader = file.bufferedReader()
+                val jsonString = bufferedReader.use { it.readText() }
+                JSONObject(jsonString)
+            } catch (e: IOException) {
+                e.printStackTrace()
+                null
+            }
+        } else {
+            null
+        }
     }
 
     private fun getDataHoraAtual(): String {

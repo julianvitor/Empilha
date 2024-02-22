@@ -1,11 +1,14 @@
 package com.example.ali
-import android.content.ContentValues
-import android.database.sqlite.SQLiteDatabase
+
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
+import java.io.IOException
 
 class RegistroActivity : AppCompatActivity() {
 
@@ -45,57 +48,81 @@ class RegistroActivity : AppCompatActivity() {
             return
         }
 
-        // Obter o banco de dados em modo de escrita
-        val db: SQLiteDatabase = dbHelper.writableDatabase
-
-        // Verificar se o usuário já existe no banco de dados
-        if (usuarioExiste(apelido)) {
-            Toast.makeText(this, "Usuário já cadastrado. Por favor, escolha outro nome de usuário.", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        // Criar um ContentValues para inserir os dados no banco de dados
-        val values = ContentValues().apply {
-            put("nome", nome)
-            put("apelido", apelido)
-            put("senha", senha)
-        }
-
         try {
-            // Inserir os dados na tabela
-            val newRowId = db.insertOrThrow("usuarios", null, values)
-
-            // Verificar se a inserção foi bem-sucedida
-            if (newRowId != -1L) {
-                Toast.makeText(this, "Registro bem-sucedido!", Toast.LENGTH_SHORT).show()
-                // Limpar os campos após o registro bem-sucedido
-                editTextNome.text.clear()
-                editTextUsuario.text.clear()
-                editTextSenha.text.clear()
-            } else {
-                Toast.makeText(this, "Erro ao registrar. Tente novamente.", Toast.LENGTH_SHORT).show()
+            // Verificar se o usuário já existe no arquivo JSON
+            if (usuarioExiste(apelido)) {
+                Toast.makeText(this, "Usuário já cadastrado. Por favor, escolha outro nome de usuário.", Toast.LENGTH_SHORT).show()
+                return
             }
+
+            // Criar um novo objeto de usuário
+            val novoUsuario = JSONObject()
+            novoUsuario.put("nome", nome)
+            novoUsuario.put("apelido", apelido)
+            novoUsuario.put("senha", senha)
+
+            // Adicionar o novo usuário ao arquivo JSON de usuários
+            adicionarUsuarioAoJSON(novoUsuario)
+
+            Toast.makeText(this, "Registro bem-sucedido!", Toast.LENGTH_SHORT).show()
+            // Limpar os campos após o registro bem-sucedido
+            editTextNome.text.clear()
+            editTextUsuario.text.clear()
+            editTextSenha.text.clear()
+
         } catch (e: Exception) {
-            // Exibir mensagem de erro personalizada com base na exceção
+            // Exibir mensagem de erro caso ocorra uma exceção
             Toast.makeText(this, "Erro ao registrar: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun usuarioExiste(apelido: String): Boolean {
-        val db = dbHelper.readableDatabase
-        val selection = "${DatabaseHelper.COLUMN_USUARIO_APELIDO} = ?"
-        val selectionArgs = arrayOf(apelido)
-        val cursor = db.query(
-            DatabaseHelper.TABLE_USUARIOS,
-            null,
-            selection,
-            selectionArgs,
-            null,
-            null,
+        val usuariosJson = loadJsonFromFile(dbHelper.usuariosFileName)
+        usuariosJson?.let {
+            val usuariosArray = it.optJSONArray("usuarios")
+            usuariosArray?.let {
+                for (i in 0 until usuariosArray.length()) {
+                    val usuario = usuariosArray.optJSONObject(i)
+                    if (usuario.optString("apelido") == apelido) {
+                        return true
+                    }
+                }
+            }
+        }
+        return false
+    }
+
+    private fun adicionarUsuarioAoJSON(usuario: JSONObject) {
+        val usuariosJson = loadJsonFromFile(dbHelper.usuariosFileName) ?: JSONObject()
+        val usuariosArray = usuariosJson.optJSONArray("usuarios") ?: JSONArray()
+        usuariosArray.put(usuario)
+        usuariosJson.put("usuarios", usuariosArray)
+        writeJsonToFile(usuariosJson.toString(), dbHelper.usuariosFileName)
+    }
+
+    private fun loadJsonFromFile(fileName: String): JSONObject? {
+        val file = File(filesDir, fileName)
+        return if (file.exists()) {
+            try {
+                val bufferedReader = file.bufferedReader()
+                val jsonString = bufferedReader.use { it.readText() }
+                JSONObject(jsonString)
+            } catch (e: IOException) {
+                e.printStackTrace()
+                null
+            }
+        } else {
             null
-        )
-        val count = cursor.count
-        cursor.close()
-        return count > 0
+        }
+    }
+
+    private fun writeJsonToFile(jsonData: String, fileName: String) {
+        try {
+            val fileOutputStream = openFileOutput(fileName, MODE_PRIVATE)
+            fileOutputStream.write(jsonData.toByteArray())
+            fileOutputStream.close()
+        } catch (e: IOException) {
+            e.printStackTrace()
+        }
     }
 }

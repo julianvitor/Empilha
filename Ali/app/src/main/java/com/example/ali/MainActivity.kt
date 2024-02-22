@@ -1,4 +1,5 @@
 package com.example.ali
+
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
@@ -41,6 +42,10 @@ class MainActivity : AppCompatActivity() {
             val apelido = editTextUsername.text.toString()
             val senha = editTextPassword.text.toString()
 
+            // Limpar os campos de usuário e senha
+            editTextUsername.text.clear()
+            editTextPassword.text.clear()
+
             // Verificar se o usuário e a senha estão vazios
             if (apelido.isNotEmpty() && senha.isNotEmpty()) {
                 // Verificar se as credenciais são de administrador
@@ -71,6 +76,10 @@ class MainActivity : AppCompatActivity() {
         buttonRegister.setOnClickListener {
             val intent = Intent(this, RegistroActivity::class.java)
             startActivity(intent)
+
+            // Limpar os campos de usuário e senha
+            editTextUsername.text.clear()
+            editTextPassword.text.clear()
         }
     }
 
@@ -114,7 +123,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun extrairUid(mensagem: String) {
         uid = mensagem.substringAfter(":")
-        }
+    }
 
     private fun exibirToast(erro: String) {
         handler.post {
