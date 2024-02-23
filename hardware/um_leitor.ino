@@ -9,8 +9,6 @@ WebSocketsServer webSocket = WebSocketsServer(81); // Porta WebSocket
 
 #define RELE_PIN 2
 #define RELE_PIN2 4
-#define RELE_PIN3 5
-#define RELE_PIN4 18
 
 #define PINO_SDA 21
 #define PINO_SCL 22
@@ -24,7 +22,7 @@ const long interval = 5000; // Intervalo de tempo em milissegundos entre as leit
 
 void acionarRele(int pin) {
   digitalWrite(pin, LOW);
-  delay(20000);
+  delay(1000);
   digitalWrite(pin, HIGH);
 }
 
@@ -34,13 +32,10 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
       Serial.printf("[%u] Text: %s\n", num, payload);
       if (strcmp((char*)payload, "ativar 1") == 0) {
         acionarRele(RELE_PIN);
-      } else if (strcmp((char*)payload, "ativar 2") == 0) {
+      } 
+      else if (strcmp((char*)payload, "ativar 2") == 0) {
         acionarRele(RELE_PIN2);
-      } else if (strcmp((char*)payload, "ativar 3") == 0) {
-        acionarRele(RELE_PIN3);
-      } else if (strcmp((char*)payload, "ativar 4") == 0) {
-        acionarRele(RELE_PIN4);
-      }
+      } 
       break;
     default:
       break;
@@ -52,13 +47,9 @@ void setup() {
 
   pinMode(RELE_PIN, OUTPUT);
   pinMode(RELE_PIN2, OUTPUT);
-  pinMode(RELE_PIN3, OUTPUT);
-  pinMode(RELE_PIN4, OUTPUT);
 
   digitalWrite(RELE_PIN, HIGH);
   digitalWrite(RELE_PIN2, HIGH);
-  digitalWrite(RELE_PIN3, HIGH);
-  digitalWrite(RELE_PIN4, HIGH);
 
   WiFi.softAP(ssid, password);
   IPAddress IP = WiFi.softAPIP();
