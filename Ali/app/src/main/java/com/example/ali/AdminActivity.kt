@@ -55,11 +55,19 @@ class AdminActivity : AppCompatActivity() {
 
     // Função para calcular a diferença de tempo em milissegundos
     private fun calcularDiferencaTempo(retirada: String, devolucao: String): Long {
+        // Verificar se os tempos de retirada e devolução não estão vazios
+        if (retirada.isEmpty() || devolucao.isEmpty()) {
+            // Se um dos tempos estiver vazio, retornar 0 ou outro valor adequado, dependendo da sua lógica
+            return 0
+        }
+
+        // Se os tempos não estiverem vazios, calcular a diferença de tempo normalmente
         val formato = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val dataRetirada = formato.parse(retirada)
         val dataDevolucao = formato.parse(devolucao)
         return dataDevolucao.time - dataRetirada.time
     }
+
 
     // Função para formatar o tempo em horas, minutos e segundos
     private fun formatarTempo(tempo: Long): String {
