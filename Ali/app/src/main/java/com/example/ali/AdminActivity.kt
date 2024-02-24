@@ -1,5 +1,4 @@
 package com.example.ali
-
 import android.os.Bundle
 import android.widget.TableLayout
 import android.widget.TableRow

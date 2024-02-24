@@ -10,7 +10,6 @@ import android.os.Handler
 import android.os.Looper
 import okhttp3.*
 
-
 class MainActivity : AppCompatActivity() {
 
     private lateinit var editTextUsername: EditText
@@ -23,7 +22,6 @@ class MainActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private var uid: String? = null // variavel para armazenar o uid extraido
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -34,8 +32,6 @@ class MainActivity : AppCompatActivity() {
         buttonLogin = findViewById(R.id.buttonLogin)
         buttonRegister = findViewById(R.id.buttonRegister)
         dbHelper = DatabaseHelper(this)
-
-        conectarWebSocket()
 
         // Configurar OnClickListener para o botão Login
         buttonLogin.setOnClickListener {
@@ -83,6 +79,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        conectarWebSocket()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        desconectarWebSocket()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        desconectarWebSocket()
+    }
+
     private fun conectarWebSocket() {
         val request = Request.Builder()
             .url("ws://192.168.4.1:81") // Substitua pela URL do seu servidor WebSocket
@@ -105,9 +116,9 @@ class MainActivity : AppCompatActivity() {
                     extrairUid(mensagemRecebida!!)
                     dbHelper?.registrarDevolucao( uid ?: "")
                     exibirToast("Sucesso: devolvido")
-                }else if (mensagemRecebida!!.startsWith("removido:")) {
+                } else if (mensagemRecebida!!.startsWith("removido:")) {
                     exibirToast("Erro: retirada não autorizada")
-                }else {
+                } else {
                     // Se a mensagem não estiver no formato esperado, exibir um erro ou lidar de outra forma
                     exibirToast("Erro: Formato de mensagem inválido: $mensagemRecebida")
                 }
@@ -121,6 +132,14 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
+    private fun desconectarWebSocket() {
+        try {
+            webSocket.close(1000, "Activity em pausa ou destruída")
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     private fun extrairUid(mensagem: String) {
         uid = mensagem.substringAfter(":")
     }
@@ -130,6 +149,7 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this@MainActivity, "$erro", Toast.LENGTH_SHORT).show()
         }
     }
+
     private fun exibirMensagem(mensagem: String) {
         handler.post {
             Toast.makeText(this@MainActivity, mensagem, Toast.LENGTH_SHORT).show()
@@ -146,11 +166,6 @@ class MainActivity : AppCompatActivity() {
         // Conectar ao WebSocket
         handler.postDelayed({
             conectarWebSocket()
-        }, 2000) //2 segundos
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        webSocket.close(1000, "Activity fechada")
+        }, 5000) //2 segundos
     }
 }

@@ -18,12 +18,24 @@ String lastUID = ""; // Variável para armazenar o UID anterior lido
 String currentUID = ""; // Variável para armazenar o UID atual
 
 unsigned long previousMillis = 0;
-const long interval = 5000; // Intervalo de tempo em milissegundos entre as leituras do cartão RFID
+const long interval = 6000; // Intervalo de tempo em milissegundos entre as leituras do cartão RFID
+const unsigned long releDuration = 20000; // Tempo em milissegundos que o relé ficará acionado
+
+bool releState = false; // Estado atual do relé
+unsigned long releStartTime = 0; // Tempo de início da ativação do relé
 
 void acionarRele(int pin) {
   digitalWrite(pin, LOW);
-  delay(1000);
-  digitalWrite(pin, HIGH);
+  releState = true;
+  releStartTime = millis();
+}
+
+void atualizarRele() {
+  if (releState && millis() - releStartTime >= releDuration) {
+    digitalWrite(RELE_PIN, HIGH);
+    digitalWrite(RELE_PIN2, HIGH);
+    releState = false;
+  }
 }
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
@@ -62,10 +74,14 @@ void setup() {
 
   nfc.begin();
   nfc.SAMConfig(); // Configura o PN532 para aguardar por um cartão RFID
+
+  // Desativar Bluetooth
+  btStop();
 }
 
 void loop() {
   webSocket.loop();
+  atualizarRele();
 
   unsigned long currentMillis = millis();
 
