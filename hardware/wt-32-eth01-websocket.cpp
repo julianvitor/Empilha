@@ -1,33 +1,59 @@
-#include <Arduino.h>
-#include <ETH.h>
+#include <ETH.h> // quote to use ETH
+#include <WiFi.h>
+#include <PN532_I2C.h>
+#include <PN532.h>
+#include <WebServer.h> // Introduce corresponding libraries
 #include <WebSocketsServer.h>
+//rfid
+#include <Wire.h>
 
-/* 
-   * ETH_CLOCK_GPIO0_IN   - default: external clock from crystal oscillator
-   * ETH_CLOCK_GPIO0_OUT  - 50MHz clock from internal APLL output on GPIO0 - possibly an inverter is needed for LAN8720
-   * ETH_CLOCK_GPIO16_OUT - 50MHz clock from internal APLL output on GPIO16 - possibly an inverter is needed for LAN8720
-   * ETH_CLOCK_GPIO17_OUT - 50MHz clock from internal APLL inverted output on GPIO17 - tested with LAN8720
-*/
-#define ETH_CLK_MODE    ETH_CLOCK_GPIO0_IN  //  ETH_CLOCK_GPIO17_OUT
+//ethernet e websocket
+#include <Arduino.h>
 
-// Pin# of the enable signal for the external crystal oscillator (-1 to disable for internal APLL source)
-#define ETH_POWER_PIN  16
+//reles e rfid
+#define RELE_PIN 5
+#define RELE_PIN2 4
 
-// Type of the Ethernet PHY (LAN8720 or TLK110)
-#define ETH_TYPE        ETH_PHY_LAN8720
-
-// I²C-address of Ethernet PHY (0 or 1 for LAN8720, 31 for TLK110)
+#define I2C_SCL 32    // WT32-ETH01 CFG    = Gpio 32      non standard i2c adress 
+#define I2C_SDA 33    // WT32-ETH01 485_EN = Gpio 33      non standard i2c adress
+ 
+//ethernet
 #define ETH_ADDR        1
+#define ETH_POWER_PIN   16//-1 //16 // Do not use it, it can cause conflict during the software reset.
+#define ETH_POWER_PIN_ALTERNATIVE 16 //17
+#define ETH_MDC_PIN    23
+#define ETH_MDIO_PIN   18
+#define ETH_TYPE       ETH_PHY_LAN8720
+#define ETH_CLK_MODE    ETH_CLOCK_GPIO17_OUT // ETH_CLOCK_GPIO0_IN
 
-// Pin# of the I²C clock signal for the Ethernet PHY
-#define ETH_MDC_PIN     23
+PN532_I2C pn532_i2c(Wire);
+PN532 nfc(pn532_i2c);
 
-// Pin# of the I²C IO signal for the Ethernet PHY
-#define ETH_MDIO_PIN    18
+String lastUID = ""; // Variável para armazenar o UID anterior lido
+String currentUID = ""; // Variável para armazenar o UID atual
+
+unsigned long previousMillis = 0;
+const long interval = 6000; // Intervalo de tempo em milissegundos entre as leituras do cartão RFID
+const unsigned long releDuration = 20000; // Tempo em milissegundos que o relé ficará acionado
+
+bool releState = false; // Estado atual do relé
+unsigned long releStartTime = 0; // Tempo de início da ativação do relé
 
 WebSocketsServer webSocket = WebSocketsServer(81); // WebSocket server on port 81
-
 static bool eth_connected = false;
+
+void acionarRele(int pin) {
+  digitalWrite(pin, LOW);
+  releState = true;
+  releStartTime = millis();
+}
+void atualizarRele() {
+  if (releState && millis() - releStartTime >= releDuration) {
+    digitalWrite(RELE_PIN, HIGH);
+    digitalWrite(RELE_PIN2, HIGH);
+    releState = false;
+  }
+}
 
 void WiFiEvent(WiFiEvent_t event) {
   switch (event) {
@@ -67,21 +93,15 @@ void WiFiEvent(WiFiEvent_t event) {
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
   switch(type) {
-    case WStype_CONNECTED:
-      Serial.printf("[%u] Connected!\n", num);
-      break;
     case WStype_TEXT:
-      Serial.printf("[%u] get Text: %s\n", num, payload);
-      if (strcmp((char*)payload, "on") == 0) {
-        digitalWrite(5, HIGH); // Turn on LED connected to IO5
-      } else if (strcmp((char*)payload, "off") == 0) {
-        digitalWrite(5, LOW); // Turn off LED connected to IO5
-      }
-      // Echo message back to client
-      webSocket.sendTXT(num, payload, length);
-      break;
-    case WStype_DISCONNECTED:
-      Serial.printf("[%u] Disconnected!\n", num);
+      Serial.printf("[%u] Text: %s\n", num, payload);
+      webSocket.sendTXT(num, payload);
+      if (strcmp((char*)payload, "ativar 1") == 0) {
+        acionarRele(RELE_PIN);
+      } 
+      else if (strcmp((char*)payload, "ativar 2") == 0) {
+        acionarRele(RELE_PIN2);
+      } 
       break;
     default:
       break;
@@ -89,22 +109,94 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
 }
 
 void setup() {
+  pinMode(ETH_POWER_PIN_ALTERNATIVE, OUTPUT);
+  digitalWrite(ETH_POWER_PIN_ALTERNATIVE, HIGH);
+
   Serial.begin(115200);
+  Serial.println("Apos o serial begin");
+
+  pinMode(RELE_PIN, OUTPUT);
+  pinMode(RELE_PIN2, OUTPUT);
+  digitalWrite(RELE_PIN, HIGH);
+  digitalWrite(RELE_PIN2, HIGH);
+                                // start i2c on non stndard i2c pins
+  Wire.begin(I2C_SDA, I2C_SCL);                               // start i2c on non stndard i2c pins
+  nfc.begin();
+  Serial.println("depois do nfc.begin");
+
+  Serial.println("antes do wifievent");
+
   WiFi.onEvent(WiFiEvent);
   ETH.begin(ETH_ADDR, ETH_POWER_PIN, ETH_MDC_PIN, ETH_MDIO_PIN, ETH_TYPE, ETH_CLK_MODE);
-  pinMode(5, OUTPUT); // Set IO5 as output for controlling LED
+  
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
+  Serial.println("antes do nfc begin com delay");
+  delay(3000);
+
+
+
+  uint32_t versiondata = nfc.getFirmwareVersion();
+  if (!versiondata) {
+    Serial.println("Não foi possível encontrar o PN53x. Certifique-se de que está conectado corretamente.");
+  } else {
+    // Configuração do PN532 para aguardar tags por até 20 centímetros (esse valor pode variar dependendo do tipo de tag)
+    nfc.SAMConfig();
+    Serial.println("ESP32 PN532 Iniciado!");
+    Serial.println(versiondata);
+  }
+  // Desativar Bluetooth
+  btStop();
+  Serial.println("fim do setup");
 }
 
 void loop() {
   webSocket.loop();
-  if (eth_connected) {
-    // Your main loop code here
-    // Example: testClient("www.google.com", 80);
-    // Serial.print("1");
-  }
-  // Serial.print("2");
-  delay(100); // Adjust delay as needed
-  // Serial.print("3");
+  //atualizarRele();
+  Serial.println("antes do current millis");
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMillis >= interval) {
+      // Salva o último tempo de leitura
+      previousMillis = currentMillis;
+
+      // Verifica se há um cartão RFID
+      uint8_t success;
+      uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer para armazenar o UID lido
+      uint8_t uidLength;                        // Comprimento do UID (4 ou 7 bytes dependendo do tipo de cartão)
+      success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 500);
+      
+      if (success) {
+        // Se um cartão foi encontrado, converte o UID para uma string
+        currentUID = "";
+        for (uint8_t i=0; i < uidLength; i++) {
+          currentUID += String(uid[i], HEX);
+        }
+
+        // Verifica se o UID atual é diferente do UID anterior ou se é a primeira leitura
+        if (currentUID != lastUID || lastUID == "") {
+          // Envia o UID para todos os clientes conectados via WebSocket
+          webSocket.broadcastTXT("inserido:"+currentUID);
+
+          // Imprime o UID no Serial Monitor
+          Serial.print("inserido:");
+          Serial.println(currentUID);
+
+          // Atualiza o último UID lido
+          lastUID = currentUID;
+        }
+      } else {
+        // Se não foi encontrado um cartão RFID, verifica se o último UID lido foi diferente de vazio
+        if (lastUID != "") {
+          // Envia uma mensagem indicando que o cartão foi removido para todos os clientes conectados via WebSocket
+          webSocket.broadcastTXT("removido:"+lastUID);
+
+          // Imprime no Serial Monitor que o cartão foi removido
+          Serial.println("removido:"+lastUID);
+
+          // Limpa o último UID lido
+          lastUID = "";
+        }
+      }
+    }
 }
