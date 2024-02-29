@@ -33,8 +33,7 @@ class DashboardActivity : AppCompatActivity() {
         // Configurar os botões
         val bay1Button: Button = findViewById(R.id.bay1)
         val bay2Button: Button = findViewById(R.id.bay2)
-        val bay3Button: Button = findViewById(R.id.bay3)
-        val bay4Button: Button = findViewById(R.id.bay4)
+
 
         //ação dos botoes
         bay1Button.setOnClickListener {
@@ -45,21 +44,12 @@ class DashboardActivity : AppCompatActivity() {
             enviarMensagem("ativar 2")
             doca = "2"
         }
-        bay3Button.setOnClickListener {
-            enviarMensagem("ativar 3")
-            doca = "3"
-        }
-        bay4Button.setOnClickListener {
-            enviarMensagem("ativar 4")
-            doca = "4"
-        }
-        // mais botoes
     }
 
 
     private fun conectarWebsocket() {
         val request = Request.Builder()
-            .url("ws://192.168.4.1:81")
+            .url("ws://192.168.15.150:81")
             .build()
 
         val client = OkHttpClient()
@@ -67,7 +57,7 @@ class DashboardActivity : AppCompatActivity() {
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 super.onOpen(webSocket, response)
-                exibirMensagemRecebida("websocket aberto")
+                //exibirMensagemRecebida("websocket aberto")
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -81,13 +71,13 @@ class DashboardActivity : AppCompatActivity() {
                     exibirToast("Sucesso: registrado")
                     finish()
                 }
-                else {exibirToast("Erro: Formato de mensagem inválido: $mensagemRecebida")
+                else {/* exibirToast("Erro: Formato de mensagem inválido: $mensagemRecebida") */
                 }
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 super.onFailure(webSocket, t, response)
-                exibirToast(t.message ?: "Erro: websocket fail")
+                /* exibirToast(t.message ?: "Erro: websocket fail") */
                 reconectarWebsocket()
             }
         })
@@ -98,7 +88,7 @@ class DashboardActivity : AppCompatActivity() {
             uid = mensagem.substringAfter(":")
         } else {
             // Se a mensagem não estiver no formato esperado, exibir um erro ou lidar de outra forma
-            exibirToast("Erro: Formato de mensagem inválido: $mensagem")
+            /*exibirToast("Erro: Formato de mensagem inválido: $mensagem")*/
         }
     }
 

@@ -96,7 +96,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun conectarWebSocket() {
         val request = Request.Builder()
-            .url("ws://192.168.4.1:81") // Substitua pela URL do seu servidor WebSocket
+            .url("ws://192.168.15.150:81") // Substitua pela URL do seu servidor WebSocket
             .build()
 
         val client = OkHttpClient()
@@ -110,7 +110,7 @@ class MainActivity : AppCompatActivity() {
             override fun onMessage(webSocket: WebSocket, text: String) {
                 super.onMessage(webSocket, text)
                 mensagemRecebida = text // Armazena a mensagem recebida na variável de classe
-                exibirMensagemRecebida(text)
+                //exibirMensagemRecebida(text)
 
                 if (mensagemRecebida!!.startsWith("inserido:")){
                     extrairUid(mensagemRecebida!!)
@@ -120,7 +120,7 @@ class MainActivity : AppCompatActivity() {
                     exibirToast("Erro: retirada não autorizada")
                 } else {
                     // Se a mensagem não estiver no formato esperado, exibir um erro ou lidar de outra forma
-                    exibirToast("Erro: Formato de mensagem inválido: $mensagemRecebida")
+                    //exibirToast("Erro: Formato de mensagem inválido: $mensagemRecebida")
                 }
             }
 

@@ -33,7 +33,7 @@ class AdminActivity : AppCompatActivity() {
             addTextViewToRow(row, nome)
             addTextViewToRow(row, retirada)
             addTextViewToRow(row, devolucao)
-            addTextViewToRow(row, uid)
+
 
             // Calcular a diferença de tempo entre retirada e devolução para este usuário
             val diferencaTempo = calcularDiferencaTempo(retirada, devolucao)
