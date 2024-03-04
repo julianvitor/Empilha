@@ -49,7 +49,7 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun conectarWebsocket() {
         val request = Request.Builder()
-            .url("ws://192.168.15.150:81")
+            .url("ws://192.168.1.150:81")
             .build()
 
         val client = OkHttpClient()

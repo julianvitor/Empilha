@@ -22,8 +22,8 @@
 #define ETH_CLK_MODE   ETH_CLOCK_GPIO17_OUT
 
 unsigned long previousMillis = 0;
-const long interval = 10000;
-const long releDuration = 5000; // Tempo de ativação do relé em milissegundos
+const long interval = 5000;
+const long releDuration = 20000; // Tempo de ativação do relé em milissegundos
 
 
 PN532_I2C pn532_i2c(Wire);
