@@ -48,7 +48,10 @@
         android:layout_height="wrap_content"
         android:text="Entrar"
         android:background="@drawable/button_submit"
-        android:layout_marginTop="16dp"/>
+        android:layout_marginTop="16dp"
+        app:backgroundTint="@color/button_background_color"
+        />
+
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/buttonRegister"
@@ -56,6 +59,8 @@
         android:layout_height="wrap_content"
         android:text="Registrar"
         android:background="@drawable/button_submit"
-        android:layout_marginTop="8dp"/>
+        android:layout_marginTop="8dp"
+        app:backgroundTint="@color/button_background_color"
+        />
 
 </LinearLayout>
