@@ -1,5 +1,5 @@
 package com.example.ali
-import android.content.ContentValues
+
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
@@ -11,9 +11,9 @@ import java.util.*
 data class Quadra<T, U, V, W>(val first: T, val second: U, val third: V, val fourth: W)
 
 class DatabaseHelper(context: Context) {
-    internal val usuariosFileName = "usuarios.json"
-    private val usosFileName = "usos.json"
-    private val context: Context = context.applicationContext
+    val usuariosFileName = "usuarios.json"
+    val usosFileName = "usos.json"
+    val context: Context = context.applicationContext
 
     fun registrarDevolucao(uid: String) {
         val usosJson = loadJsonFromFile(usosFileName) ?: JSONObject()
@@ -24,49 +24,36 @@ class DatabaseHelper(context: Context) {
         // Iterar sobre todos os registros para encontrar aqueles com o UID correspondente
         for (i in 0 until usosArray.length()) {
             val uso = usosArray.optJSONObject(i)
-            if (uso.optString("uid") == uid) {
+            if (uso.optString("uid") == uid && !uso.has("devolucao")) {
+                // Registrar a devolução para este registro apenas se a devolução ainda não foi registrada
                 uso.put("devolucao", getDataHoraAtual())
                 devolucaoRegistrada = true
             }
         }
 
+        // Salvar as alterações no arquivo JSON
+        writeJsonToFile(usosJson.toString(), usosFileName)
+
         // Verificar se a devolução foi registrada
         if (!devolucaoRegistrada) {
-            // Lidar com o caso em que nenhum registro com o UID correspondente foi encontrado
+            // Lidar com o caso em que nenhum registro com o UID correspondente ou já tem devolução registrada
             // Aqui você pode lançar uma exceção, enviar uma mensagem de erro ou tomar outra ação adequada ao seu aplicativo
             return
         }
-
-        // Salvar as alterações no arquivo JSON
-        writeJsonToFile(usosJson.toString(), usosFileName)
     }
 
     fun registrarUso(apelido: String, uid: String, doca: String) {
         val usosJson = loadJsonFromFile(usosFileName) ?: JSONObject()
         val usosArray = usosJson.optJSONArray("usos") ?: JSONArray()
 
-        // Verificar se já existe um registro para o usuário
-        var found = false
-        for (i in 0 until usosArray.length()) {
-            val uso = usosArray.optJSONObject(i)
-            if (uso.optString("apelido") == apelido) {
-                uso.put("retirada", getDataHoraAtual())
-                uso.put("uid", uid)
-                uso.put("doca", doca)
-                found = true
-                break
-            }
-        }
+        val novoUso = JSONObject()
+        novoUso.put("apelido", apelido)
+        novoUso.put("retirada", getDataHoraAtual())
+        novoUso.put("uid", uid)
+        novoUso.put("doca", doca)
+        usosArray.put(novoUso)
 
-        if (!found) {
-            val novoUso = JSONObject()
-            novoUso.put("apelido", apelido)
-            novoUso.put("retirada", getDataHoraAtual())
-            novoUso.put("uid", uid)
-            novoUso.put("doca", doca)
-            usosArray.put(novoUso)
-        }
-
+        // Salvar as alterações no arquivo JSON
         usosJson.put("usos", usosArray)
         writeJsonToFile(usosJson.toString(), usosFileName)
     }
@@ -111,7 +98,7 @@ class DatabaseHelper(context: Context) {
             val uso = usosArray.optJSONObject(i)
             val apelido = uso.optString("apelido")
             val retirada = uso.optString("retirada")
-            val devolucao = uso.optString("devolucao")
+            val devolucao = uso.optString("devolucao", "") // Se não houver devolução, retorna uma string vazia
             val uid = uso.optString("uid")
             usuariosERetiradasDevolucao.add(Quadra(apelido, retirada, devolucao, uid))
         }

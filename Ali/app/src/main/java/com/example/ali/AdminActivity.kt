@@ -1,9 +1,13 @@
 package com.example.ali
+
 import android.os.Bundle
-import android.widget.TableLayout
-import android.widget.TableRow
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -18,57 +22,57 @@ class AdminActivity : AppCompatActivity() {
 
         databaseHelper = DatabaseHelper(this)
 
-        val tableLayout: TableLayout = findViewById(R.id.table_layout)
+        val recyclerView: RecyclerView = findViewById(R.id.recycler_view)
+        recyclerView.layoutManager = LinearLayoutManager(this)
 
-        val usuariosERetiradasDevolucao = databaseHelper.getUsuariosERetiradasDevolucao()
+        val adapter = UsoAdapter(databaseHelper.getUsuariosERetiradasDevolucao())
+        recyclerView.adapter = adapter
+    }
 
-        for (usuarioERetiradaDevolucao in usuariosERetiradasDevolucao) {
-            val nome = usuarioERetiradaDevolucao.first
-            val retirada = usuarioERetiradaDevolucao.second
-            val devolucao = usuarioERetiradaDevolucao.third
-            val uid = usuarioERetiradaDevolucao.fourth
+    private inner class UsoAdapter(private val listaDeUsuarios: List<Quadra<String, String, String, String>>) :
+        RecyclerView.Adapter<UsoAdapter.UsoViewHolder>() {
 
-            val row = TableRow(this)
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): UsoViewHolder {
+            val view = LayoutInflater.from(parent.context)
+                .inflate(R.layout.item_uso_layout, parent, false)
+            return UsoViewHolder(view)
+        }
 
-            addTextViewToRow(row, nome)
-            addTextViewToRow(row, retirada)
-            addTextViewToRow(row, devolucao)
+        override fun onBindViewHolder(holder: UsoViewHolder, position: Int) {
+            val (nome, retirada, devolucao, _) = listaDeUsuarios[position]
 
+            holder.nomeTextView.text = nome
+            holder.retiradaTextView.text = retirada
+            holder.devolucaoTextView.text = devolucao
 
-            // Calcular a diferença de tempo entre retirada e devolução para este usuário
             val diferencaTempo = calcularDiferencaTempo(retirada, devolucao)
+            holder.tempoTextView.text = formatarTempo(diferencaTempo)
+        }
 
-            // Adicionar a diferença de tempo à linha da tabela para este usuário
-            addTextViewToRow(row, formatarTempo(diferencaTempo))
+        override fun getItemCount(): Int {
+            return listaDeUsuarios.size
+        }
 
-            tableLayout.addView(row)
+        inner class UsoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+            val nomeTextView: TextView = itemView.findViewById(R.id.nome_text_view)
+            val retiradaTextView: TextView = itemView.findViewById(R.id.retirada_text_view)
+            val devolucaoTextView: TextView = itemView.findViewById(R.id.devolucao_text_view)
+            val tempoTextView: TextView = itemView.findViewById(R.id.tempo_text_view)
         }
     }
 
-    private fun addTextViewToRow(row: TableRow, text: String) {
-        val textView = TextView(this)
-        textView.text = text
-        textView.setPadding(8, 8, 8, 8)
-        row.addView(textView)
-    }
-
-    // Função para calcular a diferença de tempo em milissegundos
     private fun calcularDiferencaTempo(retirada: String, devolucao: String): Long {
-        // Verificar se os tempos de retirada e devolução não estão vazios
         if (retirada.isEmpty() || devolucao.isEmpty()) {
-            // Se um dos tempos estiver vazio, retornar 0 ou outro valor adequado, dependendo da sua lógica
             return 0
         }
 
-        // Se os tempos não estiverem vazios, calcular a diferença de tempo normalmente
         val formato = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val dataRetirada = formato.parse(retirada)
         val dataDevolucao = formato.parse(devolucao)
+
         return dataDevolucao.time - dataRetirada.time
     }
 
-
-    // Função para formatar o tempo em horas, minutos e segundos
     private fun formatarTempo(tempo: Long): String {
         val horas = TimeUnit.MILLISECONDS.toHours(tempo)
         val minutos = TimeUnit.MILLISECONDS.toMinutes(tempo) % 60
