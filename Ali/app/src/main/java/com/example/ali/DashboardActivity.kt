@@ -3,7 +3,9 @@ package com.example.ali
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.View
 import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import okhttp3.*
@@ -11,45 +13,60 @@ import okhttp3.*
 class DashboardActivity : AppCompatActivity() {
 
     private lateinit var webSocket: WebSocket
-    private lateinit var dbHelper: DatabaseHelper // Declare a variável dbHelper aqui
+    private lateinit var dbHelper: DatabaseHelper
     private val handler = Handler(Looper.getMainLooper())
-    private var mensagemRecebida: String? = null // Variável para armazenar a mensagem recebida
-    private var uid: String? = null // variavel para armazenar o uid extraido
-    private var doca: String? = null // variavel de controle da doca
+    private var mensagemRecebida: String? = null
+    private var uid: String? = null
+    private var doca: String? = null
     private var apelido: String? = null
-
+    private var countdownBotao: Int = 25
+    private lateinit var countdownTextView: TextView
+    private var countdownHandler: Handler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        //exibe a tela
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_dashboard)
         apelido = intent.getStringExtra("apelidoUsuario")
-        //conectar no websocket
-        conectarWebsocket()
+        conectarWebSocket()
+        dbHelper = DatabaseHelper(this)
 
-        //instanciar o helper DB
-        dbHelper = DatabaseHelper(this) // Inicialize dbHelper aqui
-
-        // Configurar os botões
         val bay1Button: Button = findViewById(R.id.bay1)
         val bay2Button: Button = findViewById(R.id.bay2)
+        countdownTextView = findViewById(R.id.countdownTextView)
 
-
-        //ação dos botoes
         bay1Button.setOnClickListener {
-            enviarMensagem("ativar 1")//após enviar a mensagem o fluxo continua no onmensage do websocket quando for retirado da base
+            countdownTextView.visibility = View.VISIBLE
+            iniciarContador(countdownBotao)
+            enviarMensagem("ativar 1")
             doca = "1"
         }
         bay2Button.setOnClickListener {
+            countdownTextView.visibility = View.VISIBLE
+            iniciarContador(countdownBotao)
             enviarMensagem("ativar 2")
             doca = "2"
         }
     }
 
+    private fun iniciarContador(countdown: Int) {
+        var currentCountdown = countdown
+        countdownHandler.removeCallbacksAndMessages(null)
+        countdownHandler.postDelayed(object : Runnable {
+            override fun run() {
+                currentCountdown--
+                countdownTextView.text = "Tempo restante: $currentCountdown segundos"
+                if (currentCountdown == 0) {
+                    finish()
+                    return
+                }
+                countdownHandler.postDelayed(this, 1000)
+            }
+        }, 1000)
+    }
 
-    private fun conectarWebsocket() {
+    private fun conectarWebSocket() {
         val request = Request.Builder()
-            .url("ws://192.168.1.150:81")
+            .url("ws://192.168.15.150:81")
             .build()
 
         val client = OkHttpClient()
@@ -57,52 +74,41 @@ class DashboardActivity : AppCompatActivity() {
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 super.onOpen(webSocket, response)
-                //exibirMensagemRecebida("websocket aberto")
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
                 super.onMessage(webSocket, text)
-                mensagemRecebida = text // Armazena a mensagem recebida na variável de classe
+                mensagemRecebida = text
                 exibirMensagemRecebida(text)
 
                 if (mensagemRecebida!!.startsWith("removido:")) {
-                    extrairUid(mensagemRecebida!!)// agora o uid extraido ja está na memoria e é possivel passar para a função que grava no banco de dados
+                    extrairUid(mensagemRecebida!!)
                     dbHelper?.registrarUso(apelido ?: "", uid ?: "", doca ?: "")
                     exibirToast("Sucesso: registrado")
                     finish()
-                }
-                else {/* exibirToast("Erro: Formato de mensagem inválido: $mensagemRecebida") */
                 }
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 super.onFailure(webSocket, t, response)
-                /* exibirToast(t.message ?: "Erro: websocket fail") */
-                reconectarWebsocket()
+                reconectarWebSocket()
             }
         })
     }
 
-    private fun extrairUid (mensagem: String){
+    private fun extrairUid(mensagem: String) {
         if (mensagem.startsWith("removido:")) {
             uid = mensagem.substringAfter(":")
-        } else {
-            // Se a mensagem não estiver no formato esperado, exibir um erro ou lidar de outra forma
-            /*exibirToast("Erro: Formato de mensagem inválido: $mensagem")*/
         }
     }
 
-
-    fun reconectarWebsocket() {
-        // Conectar ao WebSocket após 5 segundos
+    private fun reconectarWebSocket() {
         handler.postDelayed({
-            conectarWebsocket()
-        }, 5000) // 5000 milissegundos = 5 segundos
+            conectarWebSocket()
+        }, 5000)
     }
 
-
     private fun enviarMensagem(mensagem: String) {
-        // Enviar mensagem
         webSocket.send(mensagem)
         exibirMensagemEnviada(mensagem)
     }
@@ -115,11 +121,7 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun exibirMensagemRecebida(mensagem: String) {
         handler.post {
-            Toast.makeText(
-                this@DashboardActivity,
-                "Mensagem recebida: $mensagem",
-                Toast.LENGTH_SHORT
-            ).show()
+            Toast.makeText(this@DashboardActivity, "Mensagem recebida: $mensagem", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -132,5 +134,6 @@ class DashboardActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         webSocket.close(1000, "Activity fechada")
+        countdownHandler.removeCallbacksAndMessages(null)
     }
 }
