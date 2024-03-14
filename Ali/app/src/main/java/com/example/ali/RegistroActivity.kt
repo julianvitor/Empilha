@@ -1,5 +1,6 @@
 package com.example.ali
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
@@ -69,6 +70,8 @@ class RegistroActivity : AppCompatActivity() {
             editTextNome.text.clear()
             editTextUsuario.text.clear()
             editTextSenha.text.clear()
+            val intent = Intent(this, MainActivity::class.java)
+            startActivity(intent)
 
         } catch (e: Exception) {
             // Exibir mensagem de erro caso ocorra uma exceção
