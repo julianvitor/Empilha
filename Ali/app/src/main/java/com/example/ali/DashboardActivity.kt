@@ -20,14 +20,17 @@ class DashboardActivity : AppCompatActivity() {
     private var doca: String? = null
     private var apelido: String? = null
     private var countdownBotao: Int = 25
+    private var countdownGeral: Int = 60
     private lateinit var countdownTextView: TextView
     private var countdownHandler: Handler = Handler(Looper.getMainLooper())
+    private var countdownGeralHandler: Handler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_dashboard)
         apelido = intent.getStringExtra("apelidoUsuario")
         conectarWebSocket()
+        contadorGeral(countdownGeral)
         dbHelper = DatabaseHelper(this)
 
         val bay1Button: Button = findViewById(R.id.bay1)
@@ -36,19 +39,35 @@ class DashboardActivity : AppCompatActivity() {
 
         bay1Button.setOnClickListener {
             countdownTextView.visibility = View.VISIBLE
-            iniciarContador(countdownBotao)
+            contadorBotao(countdownBotao)
             enviarMensagem("ativar 1")
             doca = "1"
         }
         bay2Button.setOnClickListener {
             countdownTextView.visibility = View.VISIBLE
-            iniciarContador(countdownBotao)
+            contadorBotao(countdownBotao)
             enviarMensagem("ativar 2")
             doca = "2"
         }
     }
+    private fun contadorGeral(countdownGeral: Int){
+        var currentCountdown = countdownGeral
+        exibirToast("tempo limite: $currentCountdown segundos")
+        countdownGeralHandler.removeCallbacksAndMessages(null)
+        countdownGeralHandler.postDelayed(object : Runnable {
+            override fun run() {
+                currentCountdown--
+                if (currentCountdown == 0) {
+                    exibirToast("tempo limite atingido")
+                    finish()
+                    return
+                }
+                countdownGeralHandler.postDelayed(this, 1000)
+            }
+        }, 1000)
+    }
 
-    private fun iniciarContador(countdown: Int) {
+    private fun contadorBotao(countdown: Int) {
         var currentCountdown = countdown
         countdownHandler.removeCallbacksAndMessages(null)
         countdownHandler.postDelayed(object : Runnable {
@@ -125,9 +144,9 @@ class DashboardActivity : AppCompatActivity() {
         }
     }
 
-    private fun exibirToast(erro: String) {
+    private fun exibirToast(mensagemToast: String) {
         handler.post {
-            Toast.makeText(this@DashboardActivity, "$erro", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this@DashboardActivity, "$mensagemToast", Toast.LENGTH_SHORT).show()
         }
     }
 
