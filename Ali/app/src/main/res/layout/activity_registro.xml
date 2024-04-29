@@ -70,4 +70,13 @@
         app:backgroundTint="@color/button_background_color"
         />
 
+    <com.google.android.material.button.MaterialButton
+        android:text="Voltar"
+        android:id="@+id/buttonBack"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="5dp"
+        android:background="@drawable/button_back"
+        app:backgroundTint="@color/button_back_background_color" />
+
 </LinearLayout>

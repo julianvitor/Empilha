@@ -8,6 +8,7 @@ import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.button.MaterialButton
 import okhttp3.*
 
 class DashboardActivity : AppCompatActivity() {
@@ -48,6 +49,11 @@ class DashboardActivity : AppCompatActivity() {
             contadorBotao(countdownBotao)
             enviarMensagem("ativar 2")
             doca = "2"
+        }
+        //botão voltar
+        val buttonBack: MaterialButton = findViewById(R.id.buttonBack)
+        buttonBack.setOnClickListener{
+            onBackPressedDispatcher.onBackPressed()
         }
     }
     private fun contadorGeral(countdownGeral: Int){
