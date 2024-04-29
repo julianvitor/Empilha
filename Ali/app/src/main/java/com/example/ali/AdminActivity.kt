@@ -8,6 +8,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.button.MaterialButton
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -27,6 +28,12 @@ class AdminActivity : AppCompatActivity() {
 
         val adapter = UsoAdapter(databaseHelper.getUsuariosERetiradasDevolucao())
         recyclerView.adapter = adapter
+
+        //botão voltar
+        val buttonBack: MaterialButton = findViewById(R.id.buttonBack)
+        buttonBack.setOnClickListener{
+            onBackPressedDispatcher.onBackPressed()
+        }
     }
 
     private inner class UsoAdapter(private val listaDeUsuarios: List<Quadra<String, String, String, String>>) :

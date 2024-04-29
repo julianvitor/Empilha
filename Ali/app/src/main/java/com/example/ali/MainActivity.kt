@@ -96,7 +96,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun conectarWebSocket() {
         val request = Request.Builder()
-            .url("ws://192.168.15.150:81") // Substitua pela URL do seu servidor WebSocket
+            .url("ws://192.168.1.150:81") // Substitua pela URL do seu servidor WebSocket
             .build()
 
         val client = OkHttpClient()

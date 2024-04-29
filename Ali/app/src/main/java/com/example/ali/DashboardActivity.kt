@@ -8,6 +8,7 @@ import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.button.MaterialButton
 import okhttp3.*
 
 class DashboardActivity : AppCompatActivity() {
@@ -49,6 +50,11 @@ class DashboardActivity : AppCompatActivity() {
             enviarMensagem("ativar 2")
             doca = "2"
         }
+        //botão voltar
+        val buttonBack: MaterialButton = findViewById(R.id.buttonBack)
+        buttonBack.setOnClickListener{
+            onBackPressedDispatcher.onBackPressed()
+        }
     }
     private fun contadorGeral(countdownGeral: Int){
         var currentCountdown = countdownGeral
@@ -85,7 +91,7 @@ class DashboardActivity : AppCompatActivity() {
 
     private fun conectarWebSocket() {
         val request = Request.Builder()
-            .url("ws://192.168.15.150:81")
+            .url("ws://192.168.1.150:81")
             .build()
 
         val client = OkHttpClient()

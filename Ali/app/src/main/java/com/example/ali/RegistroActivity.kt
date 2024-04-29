@@ -1,7 +1,10 @@
+@file:Suppress("DEPRECATION")
+
 package com.example.ali
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.WindowManager.LayoutParams
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
@@ -10,6 +13,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
+import com.google.android.material.button.MaterialButton
 
 class RegistroActivity : AppCompatActivity() {
 
@@ -18,10 +22,12 @@ class RegistroActivity : AppCompatActivity() {
     private lateinit var editTextSenha: EditText
     private lateinit var buttonRegistrar: Button
     private lateinit var dbHelper: DatabaseHelper
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_registro)
+
+        // Impedir que o teclado virtual sobreponha o layout
+        window.setSoftInputMode(LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
         // Inicializar as views
         editTextNome = findViewById(R.id.editTextNome)
@@ -36,6 +42,13 @@ class RegistroActivity : AppCompatActivity() {
         buttonRegistrar.setOnClickListener {
             registrar()
         }
+
+        //botão voltar
+        val buttonBack: MaterialButton = findViewById(R.id.buttonBack)
+        buttonBack.setOnClickListener{
+            onBackPressedDispatcher.onBackPressed()
+        }
+
     }
 
     private fun registrar() {
