@@ -1,6 +1,9 @@
 # Created by https://www.toptal.com/developers/gitignore/api/androidstudio,android
 # Edit at https://www.toptal.com/developers/gitignore?templates=androidstudio,android
 
+# Ignorar arquivos :Zone.Identifier
+**/*.Identifier
+
 ### Android ###
 # Gradle files
 .gradle/
